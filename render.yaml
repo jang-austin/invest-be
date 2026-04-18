@@ -13,8 +13,6 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: PORT
-        value: "8080"
       - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
         value: org.postgresql.Driver
       # 아래 두 항목은 Supabase → Connect → JDBC URI 기준으로 대시보드에서 설정
