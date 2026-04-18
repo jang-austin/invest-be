@@ -1,7 +1,7 @@
 # Render / Supabase 등 운영 배포 시: SPRING_PROFILES_ACTIVE=prod
 spring:
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
   jpa:
     hibernate:

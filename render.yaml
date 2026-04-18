@@ -1,6 +1,3 @@
-# Render Blueprint: 저장소 연결 후 Sync 로 생성·갱신 가능
-# 비밀 값(SPRING_DATASOURCE_*)은 대시보드 Environment 에 직접 입력하세요.
-
 services:
   - type: web
     name: invest-be
@@ -9,14 +6,8 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: PORT
-        value: "8080"
       - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
         value: org.postgresql.Driver
-      # 아래 두 항목은 Supabase → Connect → JDBC URI 기준으로 대시보드에서 설정
-      # - SPRING_DATASOURCE_URL=jdbc:postgresql://db.<ref>.supabase.co:5432/postgres?sslmode=require
-      # - SPRING_DATASOURCE_USERNAME / SPRING_DATASOURCE_PASSWORD
