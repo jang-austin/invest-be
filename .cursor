@@ -1,0 +1,16 @@
+- This Project is a Spring Boot Project for investment
+- This is a backend project and the frontend project is on './../invest-fe'
+- The Frontend Project will be on Netlify.
+- The Backend Project will be on Render.
+- The Database will be on Supa-base
+- The stock data is from Yahoo Finance API
+- I can get user with only ID,
+- We don't save stock's data, but we have User Table with have money, Save History, Transaction History of Save money or stock.
+
+1. User can login with only ID and get money user has.
+2. User can see stock's semi-realtime price.
+3. stock's semi-realtime price is saved in only server's memory with a singleton instance.
+4. User can buy or sell the stock limited user's money or stock the user has.
+5. User can add or minus money with the button.
+6. User can see the money with money + stock's value, and percent of the user has earned, or lost.
+7. User can see the filtered data that manually added or minus of money and sell or buy stock transaction history.

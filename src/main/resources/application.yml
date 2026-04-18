@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: invest-be
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:invest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.h2.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    defaults:
+      enabled: true
+
+invest:
+  stock:
+    refresh-ms: ${INVEST_STOCK_REFRESH_MS:15000}
+  yahoo-finance:
+    enabled: ${YAHOO_FINANCE_ENABLED:true}
+    chart-base-url: ${YAHOO_FINANCE_CHART_BASE_URL:https://query1.finance.yahoo.com}
+    chart-path: ${YAHOO_FINANCE_CHART_PATH:/v8/finance/chart/{symbol}}
+    query-range: ${YAHOO_FINANCE_QUERY_RANGE:1d}
+    query-interval: ${YAHOO_FINANCE_QUERY_INTERVAL:1m}
+    user-agent: ${YAHOO_FINANCE_USER_AGENT:Mozilla/5.0 (compatible; InvestBE/1.0)}
+    connect-timeout-ms: ${YAHOO_FINANCE_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${YAHOO_FINANCE_READ_TIMEOUT_MS:20000}
+    api-key: ${YAHOO_FINANCE_API_KEY:}
+    api-key-header: ${YAHOO_FINANCE_API_KEY_HEADER:X-RapidAPI-Key}
+    referer: ${YAHOO_FINANCE_REFERER:}
