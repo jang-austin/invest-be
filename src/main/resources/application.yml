@@ -9,6 +9,13 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.h2.Driver}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 60000
+      keepalive-time: 30000
+      initialization-fail-timeout: 0
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,6 +23,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        temp.use_jdbc_metadata_defaults: false
 
 server:
   port: ${PORT:8080}
