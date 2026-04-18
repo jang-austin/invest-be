@@ -2,6 +2,7 @@ spring:
   flyway:
     enabled: false
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
@@ -9,6 +10,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        boot:
+          allow_jdbc_metadata_access: false
 
 logging:
   level:
