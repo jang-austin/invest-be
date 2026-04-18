@@ -23,7 +23,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        temp.use_jdbc_metadata_defaults: false
 
 server:
   port: ${PORT:8080}
@@ -33,6 +32,9 @@ management:
     web:
       exposure:
         include: health,info
+      cors:
+        allowed-origins: "*"
+        allowed-methods: "*"
   endpoint:
     health:
       probes:

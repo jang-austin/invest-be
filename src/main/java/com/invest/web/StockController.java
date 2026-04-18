@@ -22,6 +22,8 @@ public class StockController {
     public StockQuoteResponse quote(@PathVariable String symbol) {
         stockPriceRegistry.watch(symbol);
         BigDecimal price = stockPriceRegistry.getOrThrow(symbol);
-        return new StockQuoteResponse(symbol.trim().toUpperCase(), price, stockPriceRegistry.getLastUpdated(symbol));
+        String name = stockPriceRegistry.getName(symbol);
+        return new StockQuoteResponse(
+                symbol.trim().toUpperCase(), price, name, stockPriceRegistry.getLastUpdated(symbol));
     }
 }

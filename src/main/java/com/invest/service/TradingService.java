@@ -34,14 +34,15 @@ public class TradingService {
     }
 
     @Transactional
-    public User buy(String userId, String symbol, BigDecimal quantity) {
+    public User buy(String userId, String symbol, BigDecimal quantity, BigDecimal exchangeRate) {
         String sym = symbol.trim().toUpperCase();
         BigDecimal qty = quantity.setScale(8, RoundingMode.HALF_UP);
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
-        BigDecimal price = stockPriceRegistry.getOrThrow(sym);
-        BigDecimal cost = price.multiply(qty).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal usdPrice = stockPriceRegistry.getOrThrow(sym);
+        BigDecimal krwPrice = usdPrice.multiply(exchangeRate).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal cost = krwPrice.multiply(qty).setScale(4, RoundingMode.HALF_UP);
 
         User user = userRepository
                 .findById(userId.trim())
@@ -59,11 +60,11 @@ public class TradingService {
         BigDecimal newQty = oldQty.add(qty);
         BigDecimal newAvg;
         if (oldQty.compareTo(BigDecimal.ZERO) == 0) {
-            newAvg = price;
+            newAvg = krwPrice;
         } else {
             newAvg = oldQty
                     .multiply(oldAvg)
-                    .add(qty.multiply(price))
+                    .add(qty.multiply(krwPrice))
                     .divide(newQty, 8, RoundingMode.HALF_UP);
         }
         holding.setQuantity(newQty);
@@ -74,18 +75,19 @@ public class TradingService {
         userRepository.save(user);
 
         ledgerEntryRepository.save(new LedgerEntry(
-                user.getId(), TransactionType.BUY, sym, qty, price, cost.negate(), Instant.now()));
+                user.getId(), TransactionType.BUY, sym, qty, krwPrice, cost.negate(), Instant.now()));
         return user;
     }
 
     @Transactional
-    public User sell(String userId, String symbol, BigDecimal quantity) {
+    public User sell(String userId, String symbol, BigDecimal quantity, BigDecimal exchangeRate) {
         String sym = symbol.trim().toUpperCase();
         BigDecimal qty = quantity.setScale(8, RoundingMode.HALF_UP);
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
-        BigDecimal price = stockPriceRegistry.getOrThrow(sym);
+        BigDecimal usdPrice = stockPriceRegistry.getOrThrow(sym);
+        BigDecimal krwPrice = usdPrice.multiply(exchangeRate).setScale(4, RoundingMode.HALF_UP);
 
         User user = userRepository
                 .findById(userId.trim())
@@ -97,7 +99,7 @@ public class TradingService {
             throw new IllegalStateException("보유 수량이 부족합니다.");
         }
 
-        BigDecimal proceeds = price.multiply(qty).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal proceeds = krwPrice.multiply(qty).setScale(4, RoundingMode.HALF_UP);
         BigDecimal newQty = holding.getQuantity().subtract(qty);
         if (newQty.compareTo(BigDecimal.ZERO) == 0) {
             holdingRepository.delete(holding);
@@ -110,7 +112,7 @@ public class TradingService {
         userRepository.save(user);
 
         ledgerEntryRepository.save(new LedgerEntry(
-                user.getId(), TransactionType.SELL, sym, qty, price, proceeds, Instant.now()));
+                user.getId(), TransactionType.SELL, sym, qty, krwPrice, proceeds, Instant.now()));
         return user;
     }
 }

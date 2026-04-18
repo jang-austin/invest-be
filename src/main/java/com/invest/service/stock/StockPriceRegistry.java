@@ -18,6 +18,7 @@ public class StockPriceRegistry {
     private final InvestProperties properties;
 
     private final Map<String, BigDecimal> lastPrice = new ConcurrentHashMap<>();
+    private final Map<String, String> lastName = new ConcurrentHashMap<>();
     private final Map<String, Instant> lastUpdated = new ConcurrentHashMap<>();
     private final Set<String> watched = ConcurrentHashMap.newKeySet();
 
@@ -39,9 +40,10 @@ public class StockPriceRegistry {
         watch(sym);
         BigDecimal px = lastPrice.get(sym);
         if (px == null) {
-            yahooChartClient.fetchLastPrice(sym).ifPresent(p -> {
-                lastPrice.put(sym, p);
+            yahooChartClient.fetchLastPrice(sym).ifPresent(data -> {
+                lastPrice.put(sym, data.price());
                 lastUpdated.put(sym, Instant.now());
+                if (data.name() != null) lastName.put(sym, data.name());
             });
             px = lastPrice.get(sym);
         }
@@ -52,8 +54,11 @@ public class StockPriceRegistry {
     }
 
     public BigDecimal getCached(String symbol) {
-        String sym = symbol.trim().toUpperCase();
-        return lastPrice.get(sym);
+        return lastPrice.get(symbol.trim().toUpperCase());
+    }
+
+    public String getName(String symbol) {
+        return lastName.get(symbol.trim().toUpperCase());
     }
 
     public Instant getLastUpdated(String symbol) {
@@ -66,9 +71,10 @@ public class StockPriceRegistry {
             watched.add(s);
         }
         for (String sym : watched) {
-            yahooChartClient.fetchLastPrice(sym).ifPresent(p -> {
-                lastPrice.put(sym, p);
+            yahooChartClient.fetchLastPrice(sym).ifPresent(data -> {
+                lastPrice.put(sym, data.price());
                 lastUpdated.put(sym, Instant.now());
+                if (data.name() != null) lastName.put(sym, data.name());
             });
         }
     }
