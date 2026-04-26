@@ -177,13 +177,14 @@ public class YahooChartClient {
     }
 
     private static final Map<String, String[]> RANGE_INTERVAL = Map.of(
-            "1d",  new String[]{"1d", "5m"},
-            "1w",  new String[]{"5d", "60m"},
-            "1mo", new String[]{"1mo", "1d"},
-            "3mo", new String[]{"3mo", "1d"},
-            "6mo", new String[]{"6mo", "1d"},
-            "1y",  new String[]{"1y",  "1d"},
-            "2y",  new String[]{"2y",  "1wk"});
+            "1d",       new String[]{"1d",  "5m"},
+            "1w",       new String[]{"5d",  "60m"},
+            "1mo",      new String[]{"1mo", "1d"},
+            "3mo",      new String[]{"3mo", "1d"},
+            "6mo",      new String[]{"6mo", "1d"},
+            "1y",       new String[]{"1y",  "1d"},
+            "2y",       new String[]{"2y",  "1wk"},
+            "2y_daily", new String[]{"2y",  "1d"});
 
     /** 차트/히스토리용 종가 배열 반환 */
     public List<HistoryPoint> fetchHistory(String symbol, String uiRange) {

@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.Comparator;
 import java.util.List;
 import java.util.TreeMap;
 import org.springframework.stereotype.Service;
@@ -47,8 +46,8 @@ public class WhatIfService {
 
         BigDecimal krwRate = resolveKrwRate();
 
-        // 비교 종목 2년 일별 히스토리 (날짜 → 종가 USD)
-        List<HistoryPoint> history = yahooChartClient.fetchHistory(sym, "2y");
+        // 비교 종목 2년 일별 히스토리 (날짜 → 종가 USD) — what-if는 일봉 정확도 필요
+        List<HistoryPoint> history = yahooChartClient.fetchHistory(sym, "2y_daily");
         if (history.isEmpty()) return zero(sym);
 
         TreeMap<LocalDate, BigDecimal> priceMap = new TreeMap<>();
