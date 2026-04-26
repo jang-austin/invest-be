@@ -22,12 +22,12 @@ public class WalletController {
     @PostMapping("/deposit")
     public UserResponse deposit(@Valid @RequestBody MoneyRequest request) {
         var user = walletService.addMoney(request.userId(), request.amount());
-        return new UserResponse(user.getId(), user.getBalance());
+        return new UserResponse(user.getId(), user.getBalance(), user.getEmail(), user.getName(), user.getPictureUrl());
     }
 
     @PostMapping("/withdraw")
     public UserResponse withdraw(@Valid @RequestBody MoneyRequest request) {
         var user = walletService.subtractMoney(request.userId(), request.amount());
-        return new UserResponse(user.getId(), user.getBalance());
+        return new UserResponse(user.getId(), user.getBalance(), user.getEmail(), user.getName(), user.getPictureUrl());
     }
 }

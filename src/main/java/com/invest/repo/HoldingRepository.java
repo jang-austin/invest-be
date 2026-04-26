@@ -15,4 +15,7 @@ public interface HoldingRepository extends JpaRepository<Holding, HoldingId> {
 
     @Query("select distinct upper(h.symbol) from Holding h where h.quantity > 0")
     List<String> findDistinctActiveSymbols();
+
+    @Query("select distinct h.userId from Holding h where h.quantity > 0")
+    List<String> findDistinctActiveUserIds();
 }

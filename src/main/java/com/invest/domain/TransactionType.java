@@ -4,5 +4,6 @@ public enum TransactionType {
     ADD_MONEY,
     SUBTRACT_MONEY,
     BUY,
-    SELL
+    SELL,
+    DIVIDEND_REINVEST
 }

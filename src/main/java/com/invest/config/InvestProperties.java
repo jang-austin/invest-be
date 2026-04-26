@@ -8,6 +8,7 @@ public class InvestProperties {
 
     private Stock stock = new Stock();
     private YahooFinance yahooFinance = new YahooFinance();
+    private Google google = new Google();
 
     public Stock getStock() {
         return stock;
@@ -26,6 +27,29 @@ public class InvestProperties {
     public void setYahooFinance(YahooFinance yahooFinance) {
         if (yahooFinance != null) {
             this.yahooFinance = yahooFinance;
+        }
+    }
+
+    public Google getGoogle() {
+        return google;
+    }
+
+    public void setGoogle(Google google) {
+        if (google != null) {
+            this.google = google;
+        }
+    }
+
+    public static class Google {
+
+        private String clientId = "";
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public void setClientId(String clientId) {
+            this.clientId = clientId == null ? "" : clientId;
         }
     }
 
@@ -153,15 +177,31 @@ public class InvestProperties {
             this.referer = referer == null ? "" : referer;
         }
 
+        public String buildDividendUrl(String symbol) {
+            String sym = symbol.trim().toUpperCase();
+            String base = chartBaseUrl.endsWith("/") ? chartBaseUrl.substring(0, chartBaseUrl.length() - 1) : chartBaseUrl;
+            String path = chartPath.startsWith("/") ? chartPath : "/" + chartPath;
+            if (!path.contains("{symbol}")) path = path + "/{symbol}";
+            return UriComponentsBuilder.fromUriString(base + path)
+                    .queryParam("range", "2y")
+                    .queryParam("interval", "1mo")
+                    .queryParam("events", "dividends")
+                    .buildAndExpand(sym)
+                    .encode()
+                    .toUriString();
+        }
+
         public String buildChartUrl(String symbol) {
             String sym = symbol.trim().toUpperCase();
             String base = chartBaseUrl.endsWith("/") ? chartBaseUrl.substring(0, chartBaseUrl.length() - 1) : chartBaseUrl;
             String path = chartPath.startsWith("/") ? chartPath : "/" + chartPath;
-            path = path.replace("{symbol}", sym);
+            // Use {symbol} as a template variable so UriComponentsBuilder encodes it properly
+            if (!path.contains("{symbol}")) path = path + "/{symbol}";
             return UriComponentsBuilder.fromUriString(base + path)
                     .queryParam("range", queryRange)
                     .queryParam("interval", queryInterval)
-                    .build(true)
+                    .buildAndExpand(sym)
+                    .encode()
                     .toUriString();
         }
     }

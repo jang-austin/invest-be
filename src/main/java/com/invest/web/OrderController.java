@@ -22,12 +22,12 @@ public class OrderController {
     @PostMapping("/buy")
     public UserResponse buy(@Valid @RequestBody OrderRequest request) {
         var user = tradingService.buy(request.userId(), request.symbol(), request.quantity(), request.exchangeRate());
-        return new UserResponse(user.getId(), user.getBalance());
+        return new UserResponse(user.getId(), user.getBalance(), user.getEmail(), user.getName(), user.getPictureUrl());
     }
 
     @PostMapping("/sell")
     public UserResponse sell(@Valid @RequestBody OrderRequest request) {
         var user = tradingService.sell(request.userId(), request.symbol(), request.quantity(), request.exchangeRate());
-        return new UserResponse(user.getId(), user.getBalance());
+        return new UserResponse(user.getId(), user.getBalance(), user.getEmail(), user.getName(), user.getPictureUrl());
     }
 }

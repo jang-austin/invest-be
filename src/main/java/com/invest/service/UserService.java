@@ -16,9 +16,16 @@ public class UserService {
     }
 
     @Transactional
-    public User loginOrCreate(String userId) {
-        String id = userId.trim();
-        return userRepository.findById(id).orElseGet(() -> userRepository.save(new User(id, BigDecimal.ZERO)));
+    public User loginOrCreateWithGoogle(String sub, String email, String name, String pictureUrl) {
+        User user = userRepository.findById(sub).orElseGet(() -> {
+            User u = new User(sub, BigDecimal.ZERO);
+            return userRepository.save(u);
+        });
+        // 프로필 정보는 매 로그인마다 최신으로 갱신
+        user.setEmail(email);
+        user.setName(name);
+        user.setPictureUrl(pictureUrl);
+        return userRepository.save(user);
     }
 
     public User require(String userId) {
