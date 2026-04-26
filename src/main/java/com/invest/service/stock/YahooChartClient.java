@@ -3,11 +3,15 @@ package com.invest.service.stock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.invest.config.InvestProperties;
+import com.invest.web.dto.HistoryPoint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -169,6 +173,83 @@ public class YahooChartClient {
         } catch (Exception e) {
             log.warn("Yahoo 배당 파싱 실패 {}: {}", sym, e.getMessage());
             return Map.of();
+        }
+    }
+
+    private static final Map<String, String[]> RANGE_INTERVAL = Map.of(
+            "1d",  new String[]{"1d", "5m"},
+            "1w",  new String[]{"5d", "60m"},
+            "1mo", new String[]{"1mo", "1d"},
+            "3mo", new String[]{"3mo", "1d"},
+            "6mo", new String[]{"6mo", "1d"},
+            "1y",  new String[]{"1y",  "1d"},
+            "2y",  new String[]{"2y",  "1wk"});
+
+    /** 차트/히스토리용 종가 배열 반환 */
+    public List<HistoryPoint> fetchHistory(String symbol, String uiRange) {
+        var yf = investProperties.getYahooFinance();
+        if (!yf.isEnabled()) return List.of();
+
+        String sym = symbol.trim().toUpperCase();
+        String[] ri = RANGE_INTERVAL.getOrDefault(uiRange, RANGE_INTERVAL.get("1mo"));
+
+        String base = yf.getChartBaseUrl().replaceAll("/$", "");
+        String path = yf.getChartPath().startsWith("/") ? yf.getChartPath() : "/" + yf.getChartPath();
+        if (!path.contains("{symbol}")) path = path + "/{symbol}";
+
+        String url = org.springframework.web.util.UriComponentsBuilder
+                .fromUriString(base + path)
+                .queryParam("range", ri[0])
+                .queryParam("interval", ri[1])
+                .buildAndExpand(sym)
+                .encode()
+                .toUriString();
+
+        try {
+            var spec = yahooRestClient.get().uri(url).header("User-Agent", yf.getUserAgent());
+            if (yf.getApiKey() != null && !yf.getApiKey().isBlank()
+                    && yf.getApiKeyHeader() != null && !yf.getApiKeyHeader().isBlank()) {
+                spec = spec.header(yf.getApiKeyHeader(), yf.getApiKey());
+            }
+            if (yf.getReferer() != null && !yf.getReferer().isBlank()) {
+                spec = spec.header("Referer", yf.getReferer());
+            }
+
+            String body = spec.retrieve().body(String.class);
+            if (body == null || body.isBlank()) return List.of();
+
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode result = root.path("chart").path("result");
+            if (!result.isArray() || result.isEmpty()) return List.of();
+
+            JsonNode node = result.get(0);
+            JsonNode timestamps = node.path("timestamp");
+            JsonNode closes = node.path("indicators").path("quote").path(0).path("close");
+
+            if (!timestamps.isArray() || !closes.isArray()) return List.of();
+
+            DateTimeFormatter fmt = ri[1].equals("1d") || ri[1].equals("1wk")
+                    ? DateTimeFormatter.ISO_LOCAL_DATE
+                    : DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+            List<HistoryPoint> out = new ArrayList<>();
+            for (int i = 0; i < timestamps.size(); i++) {
+                JsonNode c = closes.path(i);
+                if (c.isNull() || c.isMissingNode() || !c.isNumber()) continue;
+                Instant ts = Instant.ofEpochSecond(timestamps.get(i).asLong());
+                String dateStr = ri[1].equals("1d") || ri[1].equals("1wk")
+                        ? ts.atZone(ZoneOffset.UTC).toLocalDate().toString()
+                        : ts.atZone(ZoneOffset.UTC).toLocalDateTime().toString();
+                out.add(new HistoryPoint(dateStr, c.decimalValue()));
+            }
+            return out;
+
+        } catch (RestClientException e) {
+            log.warn("Yahoo 히스토리 요청 실패 {} {}: {}", sym, uiRange, e.getMessage());
+            return List.of();
+        } catch (Exception e) {
+            log.warn("Yahoo 히스토리 파싱 실패 {} {}: {}", sym, uiRange, e.getMessage());
+            return List.of();
         }
     }
 }

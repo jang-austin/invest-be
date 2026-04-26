@@ -1,7 +1,9 @@
 package com.invest.web;
 
 import com.invest.service.stock.StockPriceRegistry;
+import com.invest.service.stock.YahooChartClient;
 import com.invest.service.stock.YahooSearchClient;
+import com.invest.web.dto.HistoryPoint;
 import com.invest.web.dto.StockQuoteResponse;
 import com.invest.web.dto.StockSearchResult;
 import java.math.BigDecimal;
@@ -18,10 +20,12 @@ public class StockController {
 
     private final StockPriceRegistry stockPriceRegistry;
     private final YahooSearchClient yahooSearchClient;
+    private final YahooChartClient yahooChartClient;
 
-    public StockController(StockPriceRegistry stockPriceRegistry, YahooSearchClient yahooSearchClient) {
+    public StockController(StockPriceRegistry stockPriceRegistry, YahooSearchClient yahooSearchClient, YahooChartClient yahooChartClient) {
         this.stockPriceRegistry = stockPriceRegistry;
         this.yahooSearchClient = yahooSearchClient;
+        this.yahooChartClient = yahooChartClient;
     }
 
     @GetMapping("/{symbol}/quote")
@@ -43,5 +47,12 @@ public class StockController {
     public List<StockSearchResult> search(@RequestParam String q) {
         if (q == null || q.isBlank()) return List.of();
         return yahooSearchClient.search(q.trim());
+    }
+
+    @GetMapping("/{symbol}/history")
+    public List<HistoryPoint> history(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "1mo") String range) {
+        return yahooChartClient.fetchHistory(symbol.trim().toUpperCase(), range);
     }
 }
