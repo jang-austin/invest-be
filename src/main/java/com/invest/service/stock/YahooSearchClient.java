@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.invest.config.InvestProperties;
 import com.invest.web.dto.StockSearchResult;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -81,7 +82,12 @@ public class YahooSearchClient {
                 if (exchange == null) exchange = q.path("exchange").asText(null);
                 String type = q.path("typeDisp").asText(null);
 
-                results.add(new StockSearchResult(symbol, name, exchange, type));
+                BigDecimal price = numericOrNull(q, "regularMarketPrice");
+                BigDecimal change = numericOrNull(q, "regularMarketChange");
+                BigDecimal changePct = numericOrNull(q, "regularMarketChangePercent");
+                String currency = q.has("currency") ? q.get("currency").asText(null) : null;
+
+                results.add(new StockSearchResult(symbol, name, exchange, type, price, change, changePct, currency));
             }
             return results;
 
@@ -92,5 +98,10 @@ public class YahooSearchClient {
             log.warn("Yahoo 검색 파싱 실패 '{}': {}", query, e.getMessage());
             return List.of();
         }
+    }
+
+    private static BigDecimal numericOrNull(JsonNode node, String field) {
+        JsonNode n = node.path(field);
+        return n.isNumber() ? n.decimalValue() : null;
     }
 }

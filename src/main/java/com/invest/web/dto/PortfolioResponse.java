@@ -7,4 +7,5 @@ public record PortfolioResponse(
         BigDecimal stockValue,
         BigDecimal totalValue,
         BigDecimal netManualFunding,
+        BigDecimal pnlAmountVsFunding,
         BigDecimal pnlPercentVsFunding) {}

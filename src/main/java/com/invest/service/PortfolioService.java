@@ -61,14 +61,15 @@ public class PortfolioService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(4, RoundingMode.HALF_UP);
 
+        BigDecimal pnlAmount = null;
         BigDecimal pnlPercent = null;
         if (netFunding.compareTo(BigDecimal.ZERO) > 0) {
-            pnlPercent = total.subtract(netFunding)
-                    .divide(netFunding, 6, RoundingMode.HALF_UP)
+            pnlAmount = total.subtract(netFunding).setScale(4, RoundingMode.HALF_UP);
+            pnlPercent = pnlAmount.divide(netFunding, 6, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
         }
 
-        return new PortfolioResponse(cash, stockValue, total, netFunding, pnlPercent);
+        return new PortfolioResponse(cash, stockValue, total, netFunding, pnlAmount, pnlPercent);
     }
 
     @Transactional(readOnly = true)
