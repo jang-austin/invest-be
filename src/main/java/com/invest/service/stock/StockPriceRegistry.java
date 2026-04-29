@@ -1,6 +1,5 @@
 package com.invest.service.stock;
 
-import com.invest.config.InvestProperties;
 import com.invest.repo.HoldingRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -14,9 +13,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class StockPriceRegistry {
 
+    private static final BigDecimal FALLBACK_KRW_RATE = new BigDecimal("1500");
+
     private final YahooChartClient yahooChartClient;
     private final HoldingRepository holdingRepository;
-    private final InvestProperties properties;
 
     private final Map<String, BigDecimal> lastPrice = new ConcurrentHashMap<>();
     private final Map<String, String> lastName = new ConcurrentHashMap<>();
@@ -29,11 +29,15 @@ public class StockPriceRegistry {
     private final Map<String, BigDecimal> lastChangePct = new ConcurrentHashMap<>();
     private final Set<String> watched = ConcurrentHashMap.newKeySet();
 
-    public StockPriceRegistry(
-            YahooChartClient yahooChartClient, HoldingRepository holdingRepository, InvestProperties properties) {
+    public StockPriceRegistry(YahooChartClient yahooChartClient, HoldingRepository holdingRepository) {
         this.yahooChartClient = yahooChartClient;
         this.holdingRepository = holdingRepository;
-        this.properties = properties;
+    }
+
+    /** USD/KRW 환율 조회. KRW=X 캐시 우선, 없으면 1500 폴백. 모든 서비스에서 이 메서드 사용. */
+    public BigDecimal resolveKrwRate() {
+        BigDecimal cached = getCached("KRW=X");
+        return (cached != null && cached.compareTo(BigDecimal.valueOf(100)) > 0) ? cached : FALLBACK_KRW_RATE;
     }
 
     private static final java.util.regex.Pattern VALID_SYMBOL =
@@ -94,11 +98,16 @@ public class StockPriceRegistry {
         return price.multiply(krwRate).setScale(4, RoundingMode.HALF_UP);
     }
 
-    /** getEffectivePrice + toKrw 조합 */
+    /** getEffectivePrice + toKrw 조합. 캐시 미스 시 Yahoo 직접 조회 후 재시도. */
     public BigDecimal getEffectiveKrwPrice(String symbol, BigDecimal krwRate) {
-        BigDecimal px = getEffectivePrice(symbol.trim().toUpperCase());
-        if (px == null) return null;
-        return toKrw(px, symbol, krwRate);
+        String sym = symbol.trim().toUpperCase();
+        BigDecimal px = getEffectivePrice(sym);
+        if (px == null) {
+            yahooChartClient.fetchLastPrice(sym).ifPresent(data -> store(sym, data));
+            px = getEffectivePrice(sym);
+        }
+        if (px == null) throw new IllegalStateException("가격을 가져올 수 없습니다: " + sym);
+        return toKrw(px, sym, krwRate);
     }
 
     public BigDecimal getOrThrow(String symbol) {

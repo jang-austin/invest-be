@@ -8,5 +8,4 @@ import java.math.BigDecimal;
 public record OrderRequest(
         @NotBlank String userId,
         @NotBlank String symbol,
-        @NotNull @Positive BigDecimal quantity,
-        @NotNull @Positive BigDecimal exchangeRate) {}
+        @NotNull @Positive BigDecimal quantity) {}

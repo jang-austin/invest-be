@@ -18,8 +18,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class WhatIfService {
 
-    private static final BigDecimal DEFAULT_KRW_RATE = new BigDecimal("1500");
-
     private final LedgerEntryRepository ledgerEntryRepository;
     private final YahooChartClient yahooChartClient;
     private final StockPriceRegistry stockPriceRegistry;
@@ -113,9 +111,7 @@ public class WhatIfService {
     }
 
     private BigDecimal resolveKrwRate() {
-        BigDecimal cached = stockPriceRegistry.getCached("KRW=X");
-        return (cached != null && cached.compareTo(BigDecimal.valueOf(100)) > 0)
-                ? cached : DEFAULT_KRW_RATE;
+        return stockPriceRegistry.resolveKrwRate();
     }
 
     private WhatIfResponse zero(String sym) {

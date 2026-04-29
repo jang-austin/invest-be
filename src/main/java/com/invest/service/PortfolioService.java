@@ -1,7 +1,6 @@
 package com.invest.service;
 
 import com.invest.domain.Holding;
-import com.invest.domain.LedgerEntry;
 import com.invest.domain.TransactionType;
 import com.invest.repo.HoldingRepository;
 import com.invest.repo.LedgerEntryRepository;
@@ -12,14 +11,11 @@ import com.invest.web.dto.PortfolioResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PortfolioService {
-
-    private static final BigDecimal FALLBACK_KRW_RATE = BigDecimal.valueOf(1500);
 
     private final UserRepository userRepository;
     private final HoldingRepository holdingRepository;
@@ -43,30 +39,28 @@ public class PortfolioService {
                 .findById(userId.trim())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         List<Holding> holdings = holdingRepository.findByUserId(user.getId());
-
-        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwRate = stockPriceRegistry.resolveKrwRate();
 
         BigDecimal stockValue = BigDecimal.ZERO;
         for (Holding h : holdings) {
             stockPriceRegistry.watch(h.getSymbol());
-            BigDecimal krwPx = stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate);
-            if (krwPx == null) {
-                krwPx = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(h.getSymbol()), h.getSymbol(), krwRate);
-            }
-            stockValue = stockValue.add(h.getQuantity().multiply(krwPx));
+            stockValue = stockValue.add(
+                    h.getQuantity().multiply(stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate)));
         }
         stockValue = stockValue.setScale(4, RoundingMode.HALF_UP);
 
         BigDecimal cash = user.getBalance().setScale(4, RoundingMode.HALF_UP);
         BigDecimal total = cash.add(stockValue).setScale(4, RoundingMode.HALF_UP);
 
-        BigDecimal netFunding = ledgerEntryRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .filter(e -> e.getType() == TransactionType.ADD_MONEY
-                        || e.getType() == TransactionType.SUBTRACT_MONEY)
-                .map(LedgerEntry::getCashDelta)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // DB 쿼리로 ADD_MONEY / SUBTRACT_MONEY만 조회
+        BigDecimal netFunding = ledgerEntryRepository
+                .findByUserIdAndTypeInOrderByCreatedAtDesc(
+                        user.getId(), List.of(TransactionType.ADD_MONEY, TransactionType.SUBTRACT_MONEY))
+                .stream()
+                .map(e -> e.getCashDelta())
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(4, RoundingMode.HALF_UP);
 
-        netFunding = netFunding.setScale(4, RoundingMode.HALF_UP);
         BigDecimal pnlPercent = null;
         if (netFunding.compareTo(BigDecimal.ZERO) > 0) {
             pnlPercent = total.subtract(netFunding)
@@ -83,7 +77,7 @@ public class PortfolioService {
                 .findById(userId.trim())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         List<Holding> holdings = holdingRepository.findByUserId(user.getId());
-        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwRate = stockPriceRegistry.resolveKrwRate();
 
         return holdings.stream().map(h -> {
             BigDecimal qty = h.getQuantity();
@@ -92,10 +86,7 @@ public class PortfolioService {
             BigDecimal currentPriceKrw;
             try {
                 stockPriceRegistry.watch(h.getSymbol());
-                BigDecimal effectivePx = stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate);
-                currentPriceKrw = effectivePx != null
-                        ? effectivePx
-                        : stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(h.getSymbol()), h.getSymbol(), krwRate);
+                currentPriceKrw = stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate);
             } catch (Exception e) {
                 currentPriceKrw = avgCostKrw;
             }
@@ -104,26 +95,11 @@ public class PortfolioService {
             BigDecimal costBasisKrw = avgCostKrw.multiply(qty).setScale(4, RoundingMode.HALF_UP);
             BigDecimal pnlAmountKrw = currentValueKrw.subtract(costBasisKrw).setScale(4, RoundingMode.HALF_UP);
 
-            BigDecimal pnlPercent = null;
-            if (costBasisKrw.compareTo(BigDecimal.ZERO) > 0) {
-                pnlPercent = pnlAmountKrw
-                        .divide(costBasisKrw, 6, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100));
-            }
+            BigDecimal pnlPercent = costBasisKrw.compareTo(BigDecimal.ZERO) > 0
+                    ? pnlAmountKrw.divide(costBasisKrw, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                    : null;
 
             return new HoldingInfo(h.getSymbol(), qty, avgCostKrw, currentPriceKrw, currentValueKrw, pnlAmountKrw, pnlPercent);
-        }).collect(Collectors.toList());
-    }
-
-    private BigDecimal resolveKrwRate() {
-        try {
-            BigDecimal cached = stockPriceRegistry.getCached("KRW=X");
-            if (cached != null && cached.compareTo(BigDecimal.ZERO) > 0) {
-                return cached;
-            }
-            return stockPriceRegistry.getOrThrow("KRW=X");
-        } catch (Exception e) {
-            return FALLBACK_KRW_RATE;
-        }
+        }).toList();
     }
 }

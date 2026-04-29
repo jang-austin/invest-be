@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TradingService {
 
-    private static final BigDecimal FALLBACK_KRW_RATE = new BigDecimal("1500");
-
     private final UserRepository userRepository;
     private final HoldingRepository holdingRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -35,24 +33,16 @@ public class TradingService {
         this.stockPriceRegistry = stockPriceRegistry;
     }
 
-    private BigDecimal resolveKrwRate() {
-        BigDecimal cached = stockPriceRegistry.getCached("KRW=X");
-        return (cached != null && cached.compareTo(BigDecimal.valueOf(100)) > 0) ? cached : FALLBACK_KRW_RATE;
-    }
-
     @Transactional
-    public User buy(String userId, String symbol, BigDecimal quantity, BigDecimal exchangeRate) {
+    public User buy(String userId, String symbol, BigDecimal quantity) {
         String sym = symbol.trim().toUpperCase();
         BigDecimal qty = quantity.setScale(8, RoundingMode.HALF_UP);
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
         stockPriceRegistry.watch(sym);
-        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwRate = stockPriceRegistry.resolveKrwRate();
         BigDecimal krwPrice = stockPriceRegistry.getEffectiveKrwPrice(sym, krwRate);
-        if (krwPrice == null) {
-            krwPrice = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(sym), sym, krwRate);
-        }
         BigDecimal cost = krwPrice.multiply(qty).setScale(4, RoundingMode.HALF_UP);
 
         User user = userRepository
@@ -67,17 +57,13 @@ public class TradingService {
                 .orElse(new Holding(user.getId(), sym, BigDecimal.ZERO, BigDecimal.ZERO));
 
         BigDecimal oldQty = holding.getQuantity();
-        BigDecimal oldAvg = holding.getAverageCost();
         BigDecimal newQty = oldQty.add(qty);
-        BigDecimal newAvg;
-        if (oldQty.compareTo(BigDecimal.ZERO) == 0) {
-            newAvg = krwPrice;
-        } else {
-            newAvg = oldQty
-                    .multiply(oldAvg)
-                    .add(qty.multiply(krwPrice))
-                    .divide(newQty, 8, RoundingMode.HALF_UP);
-        }
+        BigDecimal newAvg = oldQty.compareTo(BigDecimal.ZERO) == 0
+                ? krwPrice
+                : oldQty.multiply(holding.getAverageCost())
+                        .add(qty.multiply(krwPrice))
+                        .divide(newQty, 8, RoundingMode.HALF_UP);
+
         holding.setQuantity(newQty);
         holding.setAverageCost(newAvg);
         holdingRepository.save(holding);
@@ -91,18 +77,15 @@ public class TradingService {
     }
 
     @Transactional
-    public User sell(String userId, String symbol, BigDecimal quantity, BigDecimal exchangeRate) {
+    public User sell(String userId, String symbol, BigDecimal quantity) {
         String sym = symbol.trim().toUpperCase();
         BigDecimal qty = quantity.setScale(8, RoundingMode.HALF_UP);
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
         stockPriceRegistry.watch(sym);
-        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwRate = stockPriceRegistry.resolveKrwRate();
         BigDecimal krwPrice = stockPriceRegistry.getEffectiveKrwPrice(sym, krwRate);
-        if (krwPrice == null) {
-            krwPrice = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(sym), sym, krwRate);
-        }
 
         User user = userRepository
                 .findById(userId.trim())

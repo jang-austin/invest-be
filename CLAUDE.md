@@ -126,6 +126,11 @@ UNIQUE (user_id, symbol, ex_date)  — 중복 처리 방지
 
 ## 핵심 설계
 
+### 환율 처리 중앙화
+- `StockPriceRegistry.resolveKrwRate()` — 단일 소스. `KRW=X` 캐시 우선, 없으면 1500 폴백
+- 모든 서비스(TradingService, PortfolioService, WhatIfService)가 이 메서드 사용
+- `TradingService.buy/sell`의 `exchangeRate` 파라미터 제거 (항상 서버 캐시 환율 사용)
+
 ### 통화 처리
 - Yahoo Finance `meta.currency` 필드를 `PriceData.currency`로 수신, `StockPriceRegistry.lastCurrency`에 캐시
 - **`StockPriceRegistry.toKrw(price, symbol, krwRate)`**: 통화 변환 중앙 메서드
