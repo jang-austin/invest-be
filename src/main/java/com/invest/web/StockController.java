@@ -49,7 +49,22 @@ public class StockController {
     @GetMapping("/search")
     public List<StockSearchResult> search(@RequestParam String q) {
         if (q == null || q.isBlank()) return List.of();
-        return yahooSearchClient.search(q.trim());
+        return yahooSearchClient.search(q.trim()).stream()
+                .map(r -> {
+                    String sym = r.symbol();
+                    // 검색 API가 가격 데이터를 주지 않으면 레지스트리 캐시로 보완
+                    BigDecimal price = r.regularMarketPrice() != null
+                            ? r.regularMarketPrice() : stockPriceRegistry.getCached(sym);
+                    BigDecimal change = r.regularMarketChange() != null
+                            ? r.regularMarketChange() : stockPriceRegistry.getRegularMarketChange(sym);
+                    BigDecimal changePct = r.regularMarketChangePercent() != null
+                            ? r.regularMarketChangePercent() : stockPriceRegistry.getRegularMarketChangePercent(sym);
+                    String currency = r.currency() != null
+                            ? r.currency() : stockPriceRegistry.getCurrency(sym);
+                    return new StockSearchResult(sym, r.name(), r.exchange(), r.type(),
+                            price, change, changePct, currency);
+                })
+                .toList();
     }
 
     @GetMapping("/{symbol}/history")
