@@ -49,11 +49,10 @@ public class PortfolioService {
         BigDecimal stockValue = BigDecimal.ZERO;
         for (Holding h : holdings) {
             stockPriceRegistry.watch(h.getSymbol());
-            BigDecimal px = stockPriceRegistry.getCached(h.getSymbol());
-            if (px == null) {
-                px = stockPriceRegistry.getOrThrow(h.getSymbol());
+            BigDecimal krwPx = stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate);
+            if (krwPx == null) {
+                krwPx = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(h.getSymbol()), h.getSymbol(), krwRate);
             }
-            BigDecimal krwPx = px.multiply(krwRate).setScale(4, RoundingMode.HALF_UP);
             stockValue = stockValue.add(h.getQuantity().multiply(krwPx));
         }
         stockValue = stockValue.setScale(4, RoundingMode.HALF_UP);
@@ -93,9 +92,10 @@ public class PortfolioService {
             BigDecimal currentPriceKrw;
             try {
                 stockPriceRegistry.watch(h.getSymbol());
-                BigDecimal usdPx = stockPriceRegistry.getCached(h.getSymbol());
-                if (usdPx == null) usdPx = stockPriceRegistry.getOrThrow(h.getSymbol());
-                currentPriceKrw = usdPx.multiply(krwRate).setScale(4, RoundingMode.HALF_UP);
+                BigDecimal effectivePx = stockPriceRegistry.getEffectiveKrwPrice(h.getSymbol(), krwRate);
+                currentPriceKrw = effectivePx != null
+                        ? effectivePx
+                        : stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(h.getSymbol()), h.getSymbol(), krwRate);
             } catch (Exception e) {
                 currentPriceKrw = avgCostKrw;
             }

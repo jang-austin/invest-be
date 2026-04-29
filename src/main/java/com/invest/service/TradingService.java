@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TradingService {
 
+    private static final BigDecimal FALLBACK_KRW_RATE = new BigDecimal("1500");
+
     private final UserRepository userRepository;
     private final HoldingRepository holdingRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -33,6 +35,11 @@ public class TradingService {
         this.stockPriceRegistry = stockPriceRegistry;
     }
 
+    private BigDecimal resolveKrwRate() {
+        BigDecimal cached = stockPriceRegistry.getCached("KRW=X");
+        return (cached != null && cached.compareTo(BigDecimal.valueOf(100)) > 0) ? cached : FALLBACK_KRW_RATE;
+    }
+
     @Transactional
     public User buy(String userId, String symbol, BigDecimal quantity, BigDecimal exchangeRate) {
         String sym = symbol.trim().toUpperCase();
@@ -40,8 +47,12 @@ public class TradingService {
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
-        BigDecimal usdPrice = stockPriceRegistry.getOrThrow(sym);
-        BigDecimal krwPrice = usdPrice.multiply(exchangeRate).setScale(4, RoundingMode.HALF_UP);
+        stockPriceRegistry.watch(sym);
+        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwPrice = stockPriceRegistry.getEffectiveKrwPrice(sym, krwRate);
+        if (krwPrice == null) {
+            krwPrice = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(sym), sym, krwRate);
+        }
         BigDecimal cost = krwPrice.multiply(qty).setScale(4, RoundingMode.HALF_UP);
 
         User user = userRepository
@@ -86,8 +97,12 @@ public class TradingService {
         if (qty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("수량은 0보다 커야 합니다.");
         }
-        BigDecimal usdPrice = stockPriceRegistry.getOrThrow(sym);
-        BigDecimal krwPrice = usdPrice.multiply(exchangeRate).setScale(4, RoundingMode.HALF_UP);
+        stockPriceRegistry.watch(sym);
+        BigDecimal krwRate = resolveKrwRate();
+        BigDecimal krwPrice = stockPriceRegistry.getEffectiveKrwPrice(sym, krwRate);
+        if (krwPrice == null) {
+            krwPrice = stockPriceRegistry.toKrw(stockPriceRegistry.getOrThrow(sym), sym, krwRate);
+        }
 
         User user = userRepository
                 .findById(userId.trim())

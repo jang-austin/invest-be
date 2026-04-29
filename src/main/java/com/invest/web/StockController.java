@@ -40,7 +40,10 @@ public class StockController {
                 stockPriceRegistry.getLastUpdated(symbol),
                 stockPriceRegistry.getPreMarketPrice(symbol),
                 stockPriceRegistry.getPostMarketPrice(symbol),
-                stockPriceRegistry.getMarketState(symbol));
+                stockPriceRegistry.getMarketState(symbol),
+                stockPriceRegistry.getCurrency(symbol),
+                stockPriceRegistry.getRegularMarketChange(symbol),
+                stockPriceRegistry.getRegularMarketChangePercent(symbol));
     }
 
     @GetMapping("/search")

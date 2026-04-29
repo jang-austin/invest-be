@@ -31,7 +31,10 @@ public class YahooChartClient {
             String name,
             BigDecimal preMarketPrice,
             BigDecimal postMarketPrice,
-            String marketState) {}
+            String marketState,
+            String currency,
+            BigDecimal regularMarketChange,
+            BigDecimal regularMarketChangePercent) {}
 
     private final RestClient yahooRestClient;
     private final ObjectMapper objectMapper;
@@ -109,9 +112,20 @@ public class YahooChartClient {
             }
 
             String marketState = meta.has("marketState") ? meta.get("marketState").asText(null) : null;
+            String currency = meta.has("currency") ? meta.get("currency").asText(null) : null;
+
+            BigDecimal regularMarketChange = null;
+            if (meta.has("regularMarketChange") && meta.get("regularMarketChange").isNumber()) {
+                regularMarketChange = meta.get("regularMarketChange").decimalValue();
+            }
+            BigDecimal regularMarketChangePercent = null;
+            if (meta.has("regularMarketChangePercent") && meta.get("regularMarketChangePercent").isNumber()) {
+                regularMarketChangePercent = meta.get("regularMarketChangePercent").decimalValue();
+            }
 
             return price != null
-                    ? Optional.of(new PriceData(price, name, preMarketPrice, postMarketPrice, marketState))
+                    ? Optional.of(new PriceData(price, name, preMarketPrice, postMarketPrice, marketState, currency,
+                            regularMarketChange, regularMarketChangePercent))
                     : Optional.empty();
 
         } catch (RestClientException e) {

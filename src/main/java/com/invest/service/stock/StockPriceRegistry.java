@@ -3,6 +3,7 @@ package com.invest.service.stock;
 import com.invest.config.InvestProperties;
 import com.invest.repo.HoldingRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,9 @@ public class StockPriceRegistry {
     private final Map<String, BigDecimal> lastPrePrice = new ConcurrentHashMap<>();
     private final Map<String, BigDecimal> lastPostPrice = new ConcurrentHashMap<>();
     private final Map<String, String> lastMarketState = new ConcurrentHashMap<>();
+    private final Map<String, String> lastCurrency = new ConcurrentHashMap<>();
+    private final Map<String, BigDecimal> lastChange = new ConcurrentHashMap<>();
+    private final Map<String, BigDecimal> lastChangePct = new ConcurrentHashMap<>();
     private final Set<String> watched = ConcurrentHashMap.newKeySet();
 
     public StockPriceRegistry(
@@ -53,6 +57,48 @@ public class StockPriceRegistry {
         else lastPostPrice.remove(sym);
         if (data.marketState() != null) lastMarketState.put(sym, data.marketState());
         else lastMarketState.remove(sym);
+        if (data.currency() != null) lastCurrency.put(sym, data.currency().toUpperCase());
+        else lastCurrency.remove(sym);
+        if (data.regularMarketChange() != null) lastChange.put(sym, data.regularMarketChange());
+        else lastChange.remove(sym);
+        if (data.regularMarketChangePercent() != null) lastChangePct.put(sym, data.regularMarketChangePercent());
+        else lastChangePct.remove(sym);
+    }
+
+    /**
+     * marketState를 고려한 실효 가격 반환.
+     * PRE/PREPRE → preMarketPrice (없으면 regularMarketPrice)
+     * POST/POSTPOST/CLOSED → postMarketPrice (없으면 regularMarketPrice)
+     * REGULAR → regularMarketPrice
+     */
+    public BigDecimal getEffectivePrice(String symbol) {
+        String sym = symbol.trim().toUpperCase();
+        BigDecimal reg = lastPrice.get(sym);
+        if (reg == null) return null;
+        String state = lastMarketState.getOrDefault(sym, "REGULAR");
+        if ("PRE".equals(state) || "PREPRE".equals(state)) {
+            BigDecimal pre = lastPrePrice.get(sym);
+            return pre != null ? pre : reg;
+        }
+        if ("POST".equals(state) || "POSTPOST".equals(state) || "CLOSED".equals(state)) {
+            BigDecimal post = lastPostPrice.get(sym);
+            return post != null ? post : reg;
+        }
+        return reg;
+    }
+
+    /** 캐시된 가격을 KRW로 변환. KRW 종목은 그대로, 그 외(USD 등)는 krwRate 적용. */
+    public BigDecimal toKrw(BigDecimal price, String symbol, BigDecimal krwRate) {
+        String currency = lastCurrency.getOrDefault(symbol.trim().toUpperCase(), "USD");
+        if ("KRW".equals(currency)) return price.setScale(4, RoundingMode.HALF_UP);
+        return price.multiply(krwRate).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /** getEffectivePrice + toKrw 조합 */
+    public BigDecimal getEffectiveKrwPrice(String symbol, BigDecimal krwRate) {
+        BigDecimal px = getEffectivePrice(symbol.trim().toUpperCase());
+        if (px == null) return null;
+        return toKrw(px, symbol, krwRate);
     }
 
     public BigDecimal getOrThrow(String symbol) {
@@ -91,6 +137,18 @@ public class StockPriceRegistry {
 
     public String getMarketState(String symbol) {
         return lastMarketState.get(symbol.trim().toUpperCase());
+    }
+
+    public String getCurrency(String symbol) {
+        return lastCurrency.getOrDefault(symbol.trim().toUpperCase(), "USD");
+    }
+
+    public BigDecimal getRegularMarketChange(String symbol) {
+        return lastChange.get(symbol.trim().toUpperCase());
+    }
+
+    public BigDecimal getRegularMarketChangePercent(String symbol) {
+        return lastChangePct.get(symbol.trim().toUpperCase());
     }
 
     @Scheduled(fixedDelayString = "${invest.stock.refresh-ms:15000}")

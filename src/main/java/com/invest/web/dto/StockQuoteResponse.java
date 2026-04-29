@@ -10,4 +10,7 @@ public record StockQuoteResponse(
         Instant lastUpdated,
         BigDecimal preMarketPrice,
         BigDecimal postMarketPrice,
-        String marketState) {}
+        String marketState,
+        String currency,
+        BigDecimal regularMarketChange,
+        BigDecimal regularMarketChangePercent) {}
